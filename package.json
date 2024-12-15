@@ -1,0 +1,38 @@
+{
+	"name": "email-forwarder",
+	"version": "1.0.0",
+	"description": "Pretendo Network email forwarder",
+	"main": "./dist/server.js",
+	"scripts": {
+		"lint": "eslint .",
+		"lint:fix": "eslint --fix .",
+		"build": "npm run lint && npx tsc",
+		"clean": "rimraf ./dist",
+		"start": "node ."
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/PretendoNetwork/email-forwarder.git"
+	},
+	"author": "Pretendo Network",
+	"license": "AGPL-3.0-only",
+	"bugs": {
+		"url": "https://github.com/PretendoNetwork/email-forwarder/issues"
+	},
+	"homepage": "https://github.com/PretendoNetwork/email-forwarder#readme",
+	"dependencies": {
+		"@aws-sdk/client-ses": "^3.712.0",
+		"@pretendonetwork/grpc": "^2.0.1",
+		"dotenv": "^16.4.7",
+		"nice-grpc": "^2.1.10",
+		"nodemailer": "^6.9.16",
+		"smtp-server": "^3.13.6"
+	},
+	"devDependencies": {
+		"@types/smtp-server": "^3.5.10",
+		"@typescript-eslint/eslint-plugin": "^8.18.0",
+		"@typescript-eslint/parser": "^8.18.0",
+		"eslint": "^8.57.1",
+		"typescript": "^5.7.2"
+	}
+}
