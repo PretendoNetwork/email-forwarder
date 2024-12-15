@@ -105,69 +105,71 @@ async function emailHandler(
 		return callback(new Error('Invalid email: no from address specified'));
 	}
 
-	// * Source: https://wordtothewise.com/2024/03/anatomy-of-a-received-header/
-	const receivedHeader =
-		`Received: from ${session.hostNameAppearsAs} (${session.clientHostname} [${session.remoteAddress}])\r\n` +
-		`        by ${config.smtp.hostname} (Pretendo email forwarder) with ${session.transmissionType} id ${session.id}\r\n` +
-		`        for ${session.envelope.rcptTo.map((address) => `<${address.address}>`).join(',')}` +
-		`; ${new Date().toUTCString()}`;
-
+	const receivedDate = new Date();
 	const toAddresses = session.envelope.rcptTo.map((address) => address.address);
-	const toDomains = toAddresses.map((address) => address.split('@')[1]);
 
-	let action = config.domains.defaultAction;
+	for (const address in toAddresses) {
+		const toDomain = address.split('@')[1];
 
-	if (toDomains.some((domain) => config.domains.forward.includes(domain))) {
-		action = 'forward';
-	} else if (toDomains.some((domain) => config.domains.passthrough.includes(domain))) {
-		action = 'passthrough';
-	} else if (toDomains.some((domain) => config.domains.drop.includes(domain))) {
-		action = 'drop';
-	}
+		let action = config.domains.defaultAction;
 
-	if (action === 'drop') {
-		return callback();
-	}
+		if (config.domains.forward.includes(toDomain)) {
+			action = 'forward';
+		} else if (config.domains.passthrough.includes(toDomain)) {
+			action = 'passthrough';
+		} else if (config.domains.drop.includes(toDomain)) {
+			action = 'drop';
+		}
 
-	let forwardToAddresses = toAddresses;
-	if (action === 'forward') {
-		forwardToAddresses = [];
+		if (action === 'drop') {
+			continue;
+		}
 
-		for (const address of toAddresses) {
+		let forwardToAddress = address;
+		let emailToSend = email;
+		if (action === 'forward') {
 			try {
 				const pid = Number(address.split('@')[0]);
 				const userAccountData = await getUserAccountData(pid);
 
-				forwardToAddresses.push(userAccountData.emailAddress);
-				email = email.replaceAll(address, userAccountData.emailAddress);
+				forwardToAddress = userAccountData.emailAddress;
+				emailToSend = emailToSend.replaceAll(address, userAccountData.emailAddress);
 			} catch (error) {
 				if (error instanceof Error) {
 					return callback(error);
 				} else {
-					return callback(new Error(`Unknown error when fetching user account data: ${error}`));
+					return callback(
+						new Error(`Unknown error when fetching user account data for ${address}: ${error}`)
+					);
 				}
+			}
+		}
+
+		// * Source: https://wordtothewise.com/2024/03/anatomy-of-a-received-header/
+		const receivedHeader =
+			`Received: from ${session.hostNameAppearsAs} (${session.clientHostname} [${session.remoteAddress}])\r\n` +
+			`        by ${config.smtp.hostname} (Pretendo email forwarder) with ${session.transmissionType} id ${session.id}\r\n` +
+			`        for <${address}>; ${receivedDate.toUTCString()}`;
+		emailToSend = `${receivedHeader}\r\n${emailToSend}`;
+
+		try {
+			await transporter.sendMail({
+				envelope: {
+					from: session.envelope.mailFrom.address,
+					to: forwardToAddress
+				},
+				raw: emailToSend
+			});
+		} catch (error) {
+			if (error instanceof Error) {
+				return callback(error);
+			} else {
+				return callback(new Error(`Unknown error when sending email for ${address}: ${error}`));
 			}
 		}
 	}
 
-	email = `${receivedHeader}\r\n${email}`;
-
-	try {
-		await transporter.sendMail({
-			envelope: {
-				from: session.envelope.mailFrom.address,
-				to: forwardToAddresses
-			},
-			raw: email
-		});
-		return callback();
-	} catch (error) {
-		if (error instanceof Error) {
-			return callback(error);
-		} else {
-			return callback(new Error(`Unknown error when sending email: ${error}`));
-		}
-	}
+	return callback();
 }
 
 const server = new SMTPServer({
