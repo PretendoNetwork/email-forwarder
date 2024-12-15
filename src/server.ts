@@ -108,7 +108,7 @@ async function emailHandler(
 	const receivedDate = new Date();
 	const toAddresses = session.envelope.rcptTo.map((address) => address.address);
 
-	for (const address in toAddresses) {
+	for (const address of toAddresses) {
 		const toDomain = address.split('@')[1];
 
 		let action = config.domains.defaultAction;
