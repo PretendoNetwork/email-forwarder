@@ -102,7 +102,8 @@ async function emailHandler(
 	});
 
 	if (session.envelope.mailFrom === false) {
-		return callback(new Error('Invalid email: no from address specified'));
+		console.error(`Error: client ${session.remoteAddress} did not specify a MAIL FROM address`);
+		return callback(new Error('Invalid email: no MAIL FROM address specified'));
 	}
 
 	const receivedDate = new Date();
@@ -135,13 +136,8 @@ async function emailHandler(
 				forwardToAddress = userAccountData.emailAddress;
 				emailToSend = emailToSend.replaceAll(address, userAccountData.emailAddress);
 			} catch (error) {
-				if (error instanceof Error) {
-					return callback(error);
-				} else {
-					return callback(
-						new Error(`Unknown error when fetching user account data for ${address}: ${error}`)
-					);
-				}
+				console.error(`Error when fetching user account data for ${address}: ${error}`);
+				return callback(new Error(`Error when fetching user account data for ${address}: ${error}`));
 			}
 		}
 
@@ -161,11 +157,8 @@ async function emailHandler(
 				raw: emailToSend
 			});
 		} catch (error) {
-			if (error instanceof Error) {
-				return callback(error);
-			} else {
-				return callback(new Error(`Unknown error when sending email for ${address}: ${error}`));
-			}
+			console.error(`Error when sending email for ${address}: ${error}`);
+			return callback(new Error(`Error when sending email for ${address}: ${error}`));
 		}
 	}
 
